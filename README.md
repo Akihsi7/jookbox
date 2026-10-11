@@ -54,7 +54,8 @@ src/
 
 ### 1. Room Management
 - **Create Room**: Host generates a 6-character room code
-- **Join Room**: Guests join using room code (max 10 members per room)
+- **Join Room**: Guests join using room code (max 10 *current* members per room)
+- **Leave Room**: Members can leave; departed members lose all room powers immediately (their JWT is rejected against the DB membership)
 - **Room Status**: ACTIVE (accepting operations) or ENDED (closed)
 
 ### 2. Queue Management
@@ -64,16 +65,20 @@ src/
 - **Real-time Sync**: All queue changes broadcast via WebSocket
 
 ### 3. Playback Control
-- **Playback State**: Stored in Redis for low-latency access
-- **Play/Pause/Seek**: Requires `PLAYBACK_CONTROL` capability
-- **Host Control**: Host always has full playback control
+- **Playback State**: Stored in Redis for low-latency access (server-authoritative)
+- **Play/Pause/Resume/Seek/Next**: Requires `PLAYBACK_CONTROL` capability
+- **Host Control**: Host implicitly holds every capability
+- **Seek Consistency**: `/seek` requires the `queueItemId` the client believes is playing; a mismatch returns `409 Conflict` so a stale client can't reposition whatever is actually playing
+- **Track Advance**: `/next` is idempotent — it only advances if the supplied `currentQueueItemId` still matches the Redis now-playing item
 - **Real-time Sync**: All members see synchronized playback state
 
 ### 4. Democratic Voting
 - **Vote Types**: SKIP (mark as played) or REMOVE (delete from queue)
-- **Voting Threshold**: Requires majority vote (50% + 1 of room members)
+- **Voting Threshold**: Strict majority of *current* members — `max(1, currentMembers/2 + 1)`
+- **Current Voters Only**: Votes cast by members who have since left the room do not count toward the threshold
 - **Host Bypass**: Host votes automatically apply outcomes
 - **Vote Limits**: One vote per user per type per item
+- **Playback-aware**: If the voted item is the one currently playing, playback advances to the next track automatically
 
 ### 5. Permission Management
 - **Roles**: HOST (room creator) or GUEST (members)
@@ -82,14 +87,15 @@ src/
   - `REORDER_QUEUE` - Move items in queue
   - `REMOVE_ITEMS` - Delete items from queue
   - `SKIP_OVERRIDE` - Force skip capability
-- **Host-Only**: Only hosts can grant/revoke capabilities
+- **Host-Only**: Only hosts can grant/revoke capabilities (and only for memberships in their own room)
+- **DB-Authoritative**: Capabilities are checked against the database on every request (via `RoomAccessGuard`), not against the JWT claims — grants and revocations take effect immediately, without waiting for token expiry
 
 ## Database Design
 
 ### Tables
 - **Users**: Display name and creation metadata
 - **Rooms**: Room code, host reference, and status
-- **Memberships**: User-room mappings with role and capabilities (bitmask)
+- **Memberships**: User-room mappings with role, capabilities (bitmask), and `left_at` (null while the member is current; set when they leave)
 - **QueueItems**: Video metadata, position, status, and enqueued timestamp
 - **Votes**: Skip/remove votes with user and item tracking
 
@@ -114,6 +120,7 @@ Authorization: Bearer <JWT_TOKEN>
 ### Room Management
 - `POST /rooms` - Create room
 - `POST /rooms/{code}/join` - Join existing room
+- `POST /rooms/{code}/leave` - Leave room
 - `GET /rooms/{code}/queue` - Get queue (no auth)
 - `GET /rooms/{code}/playback` - Get playback state (no auth)
 

@@ -1,5 +1,6 @@
 package com.dev.jookbox.web.rest;
 
+import com.dev.jookbox.security.AuthenticatedMember;
 import com.dev.jookbox.service.QueueService;
 import com.dev.jookbox.service.RoomService;
 import com.dev.jookbox.web.dto.JoinRoomRequest;
@@ -8,6 +9,7 @@ import com.dev.jookbox.web.dto.QueueResponse;
 import com.dev.jookbox.web.dto.RoomCreationRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +39,13 @@ public class RoomController {
     @PostMapping("/{code}/join")
     public MembershipTokenResponse joinRoom(@PathVariable String code, @Valid @RequestBody JoinRoomRequest request) {
         return roomService.joinRoom(code, request);
+    }
+
+    @PostMapping("/{code}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leave(@PathVariable String code,
+                      @AuthenticationPrincipal AuthenticatedMember member) {
+        roomService.leave(code, member);
     }
 
     @GetMapping("/{code}/queue")

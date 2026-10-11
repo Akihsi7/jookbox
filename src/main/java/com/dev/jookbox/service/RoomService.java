@@ -4,8 +4,10 @@ import com.dev.jookbox.domain.*;
 import com.dev.jookbox.repository.MembershipRepository;
 import com.dev.jookbox.repository.RoomRepository;
 import com.dev.jookbox.repository.UserRepository;
+import com.dev.jookbox.security.AuthenticatedMember;
 import com.dev.jookbox.security.JwtService;
 import com.dev.jookbox.web.BadRequestException;
+import com.dev.jookbox.web.ForbiddenOperationException;
 import com.dev.jookbox.web.ResourceNotFoundException;
 import com.dev.jookbox.web.dto.JoinRoomRequest;
 import com.dev.jookbox.web.dto.MembershipTokenResponse;
@@ -82,7 +84,7 @@ public class RoomService {
         if (room.getStatus() != RoomStatus.ACTIVE) {
             throw new BadRequestException("Room is not active");
         }
-        long currentMembers = membershipRepository.countByRoom(room);
+        long currentMembers = membershipRepository.countByRoomAndLeftAtIsNull(room);
         if (currentMembers >= 10) {
             throw new BadRequestException("Room is full");
         }
@@ -103,6 +105,19 @@ public class RoomService {
 
         String token = jwtService.generateToken(membership);
         return new MembershipTokenResponse(room.getCode(), token, membership.getRole(), Set.of());
+    }
+
+    @Transactional
+    public void leave(String roomCode, AuthenticatedMember member) {
+        Membership membership = membershipRepository.findById(member.membershipId())
+                .orElseThrow(() -> new ResourceNotFoundException("Membership not found"));
+        if (!membership.getRoom().getCode().equals(roomCode)) {
+            throw new ForbiddenOperationException("Membership not associated with this room");
+        }
+        if (membership.getLeftAt() == null) {
+            membership.setLeftAt(OffsetDateTime.now());
+            membershipRepository.save(membership);
+        }
     }
 
     private String generateUniqueCode() {

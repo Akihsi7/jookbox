@@ -2,6 +2,7 @@ package com.dev.jookbox.web.rest;
 
 import com.dev.jookbox.security.AuthenticatedMember;
 import com.dev.jookbox.service.PlaybackService;
+import com.dev.jookbox.web.dto.NextRequest;
 import com.dev.jookbox.web.dto.PlayRequest;
 import com.dev.jookbox.web.dto.PlaybackStateResponse;
 import com.dev.jookbox.web.dto.SeekRequest;
@@ -46,11 +47,26 @@ public class PlaybackController {
         return playbackService.pause(code, member);
     }
 
+    @PostMapping("/resume")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public PlaybackStateResponse resume(@PathVariable String code,
+                                        @AuthenticationPrincipal AuthenticatedMember member) {
+        return playbackService.resume(code, member);
+    }
+
     @PostMapping("/seek")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public PlaybackStateResponse seek(@PathVariable String code,
                                       @AuthenticationPrincipal AuthenticatedMember member,
                                       @Valid @RequestBody SeekRequest request) {
-        return playbackService.seek(code, request.positionMs(), member);
+        return playbackService.seek(code, request.positionMs(), request.queueItemId(), member);
+    }
+
+    @PostMapping("/next")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public PlaybackStateResponse next(@PathVariable String code,
+                                      @AuthenticationPrincipal AuthenticatedMember member,
+                                      @Valid @RequestBody NextRequest request) {
+        return playbackService.next(code, request.currentQueueItemId(), member);
     }
 }

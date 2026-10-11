@@ -12,4 +12,5 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
     Optional<Membership> findByRoomAndUser(Room room, User user);
     Optional<Membership> findByRoomCodeAndUserId(String code, UUID userId);
     long countByRoom(Room room);
+    long countByRoomAndLeftAtIsNull(Room room);
 }

@@ -7,6 +7,7 @@ public record PlaybackStateResponse(
         UUID nowPlayingQueueItemId,
         int positionMs,
         boolean playing,
-        Instant lastUpdateTs
+        Instant lastUpdateTs,
+        Instant serverTime
 ) {
 }

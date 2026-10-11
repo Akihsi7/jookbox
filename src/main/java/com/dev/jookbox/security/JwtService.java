@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -53,6 +54,21 @@ public class JwtService {
                 .setExpiration(Date.from(now.plus(properties.expiryMinutes(), ChronoUnit.MINUTES)))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    /**
+     * Parses an "Authorization" header value of the form "Bearer &lt;jwt&gt;".
+     * Returns empty if the header is missing or does not carry a valid bearer token.
+     */
+    public Optional<AuthenticatedMember> parseBearer(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(parse(authorizationHeader.substring(7)));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
     public AuthenticatedMember parse(String token) {

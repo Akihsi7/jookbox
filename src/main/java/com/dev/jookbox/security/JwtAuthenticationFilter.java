@@ -28,16 +28,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            try {
-                AuthenticatedMember member = jwtService.parse(token);
-                SecurityContextHolder.getContext().setAuthentication(new MemberAuthentication(member, token));
-                log.debug("Authenticated member {} for room {}", member.userId(), member.roomCode());
-            } catch (Exception e) {
-                log.debug("Failed to authenticate JWT: {}", e.getMessage());
-            }
-        }
+        jwtService.parseBearer(header).ifPresent(member -> {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(new MemberAuthentication(member, header.substring(7)));
+            log.debug("Authenticated member {} for room {}", member.userId(), member.roomCode());
+        });
         filterChain.doFilter(request, response);
     }
 }
